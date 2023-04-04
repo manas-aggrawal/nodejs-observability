@@ -1,5 +1,5 @@
 {
-  "name": "adot-xray",
+  "name": "nodejs-telemetry",
   "version": "1.0.3",
   "description": "tracing and logging using aws distro for opentelemetry",
   "main": "dist/index.js",
