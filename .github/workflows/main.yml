@@ -9,16 +9,15 @@ on:
 jobs:
   publish-gpr:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    permissions: write-all
+      
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
         with:
           node-version: 18
-          registry-url: https://npm.pkg.github.com/studiographene/
-          scope: 'nodejs-telemetry'
+          registry-url: https://npm.pkg.github.com/
+          scope: 'studiographene'
       - run: npm install
       - run: npm run build
       - run: npm publish
