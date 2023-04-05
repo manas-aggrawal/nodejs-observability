@@ -1,11 +1,9 @@
 {
-  "name": "nodejs-telemetry",
-  "version": "1.0.12",
+  "name": "@studiographene/nodejs-telemetry",
+  "version": "1.0.9",
   "description": "tracing and logging using aws distro for opentelemetry",
   "main": "dist/index.js",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/studiographene/"
-  },
+  "repository": "https://github.com/studiographene/nodejs-telemetry.git",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
@@ -20,7 +18,7 @@
     "logging",
     "opentelemetry"
   ],
-  "author": "Manas Aggrawal",
+  "author": "StudioGraphene",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^18.15.11",
