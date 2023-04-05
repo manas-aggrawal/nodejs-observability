@@ -33,9 +33,10 @@ public async someFn(){
    //some code
 }
 ```
-4. This trace decorator will automatically create spans and subspans for continuous code and will automatically log any error encountered against that trace.
+4. This trace decorator will automatically create spans and subspans for continuous code and will automatically log any error encountered against that trace. You just have to import logger as well, from the package, in whatever file you want to use the logger.
 
 ```
+import {logger} from "nodejs-telemetry";
 @traceDecorator()
 public async someFn(){
    logger.info("some message");
