@@ -1,6 +1,6 @@
 {
   "name": "nodejs-telemetry",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "tracing and logging using aws distro for opentelemetry",
   "main": "dist/index.js",
   "publishConfig": {
