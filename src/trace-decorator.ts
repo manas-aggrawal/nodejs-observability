@@ -27,10 +27,7 @@ export function traceDecorator() {
             return result;
           } catch (err) {
             logger.error(
-              `ERROR IN - ${_target.constructor.name} #${_propertyKey}`,
-              {
-                err,
-              }
+              `${_target.constructor.name} #${_propertyKey} - ERROR - ${err}`
             );
             span.setStatus({
               code: SpanStatusCode.ERROR,

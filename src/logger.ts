@@ -11,7 +11,10 @@ export class Logger {
   public logger = createLogger({
     format: format.combine(
       format.json({ deterministic: false }),
-      format.colorize()
+      format.colorize({
+        all: true,
+        colors: { info: "blue", warn: "yellow", error: "red", debug: "green" },
+      })
     ),
     transports: [new transports.Console()],
   });
@@ -64,23 +67,3 @@ export class Logger {
 }
 
 export const logger = new Logger();
-export default {
-  error: (message?: string, error?: unknown) => {
-    if (typeof error === "object") {
-      logger.log("error", `${message} - ${JSON.stringify(error)}`);
-    } else logger.log("error", `${message} - ${error}`);
-  },
-  warning: (warning: string) => {
-    logger.log("warn", `${warning}`);
-  },
-  info: (info: unknown) => {
-    if (typeof info === "object") {
-      logger.log("info", `${JSON.stringify(info)}`);
-    } else logger.log("info", `${info}`);
-  },
-  debug: (debug: unknown) => {
-    if (typeof debug === "object") {
-      logger.log("debug", `${JSON.stringify(debug)}`);
-    } else logger.log("debug", `${debug}`);
-  },
-};
