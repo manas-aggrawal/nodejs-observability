@@ -41,7 +41,25 @@ import {logger} from "nodejs-telemetry";
 public async someFn(){
    logger.info("some message");
    //some code
+}
+```
+5. In logger there are 4 different types of levels - "info", "warning", "error" and "debug". And you can use them like shown below.
 
+```
+import {logger} from "nodejs-telemetry";
+@traceDecorator()
+public async someFn(){
+   logger.info("some message");
+   //or
+   logger.info({key:value, key2:value});
+   logger.debug("some message");
+   //or
+   logger.debug({key:value, key2:value});
+   logger.warning("some message");
+   logger.error("some message");
+   //or
+   logger.error("some mssg", {key:value});
+   
 }
 ```
 
