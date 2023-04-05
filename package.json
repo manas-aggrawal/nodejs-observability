@@ -4,7 +4,7 @@
   "description": "tracing and logging using aws distro for opentelemetry",
   "main": "dist/index.js",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/@studiographene"
+    "registry": "https://npm.pkg.github.com/studiographene"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
