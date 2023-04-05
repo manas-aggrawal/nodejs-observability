@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 18
           registry-url: https://npm.pkg.github.com/studiographene/
-          scope: '@manasaggrawal/nodejs-telemetry'
+          scope: 'nodejs-telemetry'
       - run: npm install
       - run: npm run build
       - run: npm publish
