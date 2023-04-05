@@ -17,6 +17,6 @@ jobs:
       - name: Build package
         run: npm run build
       - name: Publish package to GitHub Packages
-        run: npm publish --tag v${{ github.event.release.tag_name }}
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
