@@ -4,6 +4,8 @@ on:
     types: [created]
 jobs:
   publish:
+    env:
+      NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -18,5 +20,4 @@ jobs:
         run: npm run build
       - name: Publish package to GitHub Packages
         run: npm publish
-        env:
-          NPM_TOKEN: ${{github.token}}
+        
