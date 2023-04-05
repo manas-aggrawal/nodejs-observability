@@ -18,3 +18,5 @@ jobs:
         run: npm run build
       - name: Publish package to GitHub Packages
         run: npm publish
+        env:
+          NPM_TOKEN: ${{github.token}}
