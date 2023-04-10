@@ -20,16 +20,16 @@ import {traceDecorator} from "@studiographene/nodejs-telemetry";
    }
 
 ```
-2. Import traceDecorator(), which is a decorator function, in all of the files where you want to trace your code.
+2. Import traceDecorator, which is a decorator function, in all of the files where you want to trace your code.
 
 ```
 import {traceDecorator} from "@studiographene/nodejs-telemetry";
 ```
 
-3. Apply `@traceDecorator()` on top of the methods you want to trace.
+3. Apply `@traceDecorator` on top of the methods you want to trace.
 
 ```
-@traceDecorator()
+@traceDecorator
 public async someFn(){
    //some code
 }
@@ -38,7 +38,7 @@ public async someFn(){
 
 ```
 import {logger} from "@studiographene/nodejs-telemetry";
-@traceDecorator()
+@traceDecorator
 public async someFn(){
    logger.info("some message");
    //some code
@@ -48,7 +48,7 @@ public async someFn(){
 
 ```
 import {logger} from "@studiographene/nodejs-telemetry";
-@traceDecorator()
+@traceDecorator
 public async someFn(){
    logger.info("some message");
    //or
