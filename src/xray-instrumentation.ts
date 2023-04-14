@@ -6,7 +6,10 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { AWSXRayPropagator } from "@opentelemetry/propagator-aws-xray";
 import { AWSXRayIdGenerator } from "@opentelemetry/id-generator-aws-xray";
 import * as opentelemetry from "@opentelemetry/sdk-node";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { AwsInstrumentation } from "@opentelemetry/instrumentation-aws-sdk";
+import { WinstonInstrumentation } from "@opentelemetry/instrumentation-winston";
+import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 
 export function adotInit(
   resourceServiceName: string,
@@ -22,21 +25,17 @@ export function adotInit(
   const sdk = new opentelemetry.NodeSDK({
     textMapPropagator: new AWSXRayPropagator(),
     instrumentations: [
-      getNodeAutoInstrumentations({
-        "@opentelemetry/instrumentation-http": {
-          ignoreIncomingRequestHook: (request) => {
-            return request.url.includes(healthCheckEndpointUrl);
-          },
-        },
-        "@opentelemetry/instrumentation-aws-sdk": {
-          suppressInternalInstrumentation: true,
-        },
-        "@opentelemetry/instrumentation-winston": {
-          logHook: (span, record) => {
-            record["resource.service.name"] = resourceServiceName;
-          },
+      new HttpInstrumentation({
+        ignoreIncomingRequestHook: (request) => {
+          return request.url.includes(healthCheckEndpointUrl);
         },
       }),
+
+      new AwsInstrumentation({
+        suppressInternalInstrumentation: true,
+      }),
+      new WinstonInstrumentation(),
+      new PgInstrumentation(),
     ],
     resource: Resource.default().merge(
       new Resource({

@@ -25,9 +25,12 @@
     "typescript": "^5.0.3"
   },
   "dependencies": {
-    "@opentelemetry/auto-instrumentations-node": "^0.36.4",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.37.0",
     "@opentelemetry/id-generator-aws-xray": "^1.1.1",
+    "@opentelemetry/instrumentation-aws-sdk": "^0.34.0",
+    "@opentelemetry/instrumentation-http": "^0.38.0",
+    "@opentelemetry/instrumentation-pg": "^0.35.0",
+    "@opentelemetry/instrumentation-winston": "^0.31.1",
     "@opentelemetry/propagator-aws-xray": "^1.2.0",
     "@opentelemetry/resources": "^1.11.0",
     "@opentelemetry/sdk-node": "^0.37.0",
