@@ -7,17 +7,12 @@ Logger instance also comes from this package itself.
 
 **Installation**
 
-1. Import `adotInit()` in app.ts and call it in constructor of the class in this file. This will instrument the telemetry code and initialize the tracer for your project.
+1. Import `adotInit()` in server.ts of your project, on the top, before logger import. This will instrument the telemetry code and initialize the tracer for your project.
    
 
 ```
-import {traceDecorator} from "@studiographene/nodejs-telemetry";
-   class App{
-      constructor(){
-         adotInit(<resourceServiceName>, <healthCheckEndpointUrl>);
-         // some other code.
-      }
-   }
+import {adotInit} from "@studiographene/nodejs-telemetry";
+   adotInit(<resourceServiceName>, <healthCheckEndpointUrl>);
 
 ```
 2. Import traceDecorator, which is a decorator function, in all of the files where you want to trace your code.
