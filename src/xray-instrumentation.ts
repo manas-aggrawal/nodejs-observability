@@ -26,8 +26,8 @@ export function adotInit(
     textMapPropagator: new AWSXRayPropagator(),
     instrumentations: [
       new HttpInstrumentation({
-        ignoreIncomingRequestHook: (request) => {
-          return request.url.includes(healthCheckEndpointUrl);
+        ignoreIncomingRequestHook: (req) => {
+          return req.url === healthCheckEndpointUrl;
         },
       }),
 
