@@ -1,7 +1,9 @@
-import { Span, trace, SpanStatusCode } from "@opentelemetry/api";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable func-names */
+import { Span, trace, SpanStatusCode, SpanKind } from "@opentelemetry/api";
 import { logger } from "./logger";
 
-//active span decorator
+// active span decorator
 export function traceDecorator(target: any, key: string): any {
   let value = target[key];
 
@@ -19,6 +21,7 @@ export function traceDecorator(target: any, key: string): any {
 
         return tracer.startActiveSpan(
           `${target.constructor.name} #${_propertyKey}`,
+          { kind: SpanKind.INTERNAL },
           async (span: Span) => {
             logger.info(
               `${target.constructor.name} #${_propertyKey} SPAN STARTS!`
