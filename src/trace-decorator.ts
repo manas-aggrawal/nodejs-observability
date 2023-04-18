@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable func-names */
 import { Span, trace, SpanStatusCode, SpanKind } from "@opentelemetry/api";
 import { logger } from "./logger";
 
@@ -17,37 +15,36 @@ export function traceDecorator(target: any, key: string): any {
       const originalMethod = value;
 
       return async function (...args: unknown[]): Promise<unknown> {
-        const tracer = trace.getTracer("global-tracer");
+        const tracer = trace.getTracer("telemetry-tracer");
 
         return tracer.startActiveSpan(
-          `${target.constructor.name} #${_propertyKey}`,
-          { kind: SpanKind.INTERNAL },
+          `${target.constructor.name}.${_propertyKey}`,
           async (span: Span) => {
-            logger.info(
-              `${target.constructor.name} #${_propertyKey} SPAN STARTS!`
-            );
+            logger.info({
+              source: `${target.constructor.name}.${_propertyKey}`,
+              message: "SPAN STARTS!",
+            });
 
             try {
               const result = await originalMethod.apply(this, args);
               span.setStatus({ code: SpanStatusCode.OK });
-              // span.setAttributes(result);
+
               return result;
             } catch (err) {
-              logger.error(
-                `ERROR IN - ${target.constructor.name} #${_propertyKey}`,
-                {
-                  err,
-                }
-              );
+              logger.error({
+                message: err,
+                source: `${target.constructor.name}.${_propertyKey}`,
+              });
               span.setStatus({
                 code: SpanStatusCode.ERROR,
                 message: err.message,
               });
               throw err;
             } finally {
-              logger.info(
-                `${target.constructor.name} #${_propertyKey} SPAN ENDS!`
-              );
+              logger.info({
+                source: `${target.constructor.name}.${_propertyKey}`,
+                message: "SPAN ENDS!",
+              });
               span.end();
             }
           }

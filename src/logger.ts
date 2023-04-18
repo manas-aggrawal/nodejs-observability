@@ -1,52 +1,63 @@
 import { hostname } from "os";
 import { Service } from "typedi";
 import { createLogger, format, transports } from "winston";
-import httpContext from "express-http-context";
 import { Span, context, trace } from "@opentelemetry/api";
 
+interface ContextOptions {
+  url?: string;
+  method?: string;
+  request_id?: string;
+  user?: Record<string, unknown>;
+}
+interface LogInterface {
+  message: string;
+  source?: string;
+  event?: string;
+  data?: Record<string, unknown>;
+}
 @Service()
 export class Logger {
-  private module: string;
   private hostName: string = hostname();
+  private ctxData: ContextOptions;
+
   public logger = createLogger({
     format: format.combine(
       format.json({ deterministic: false }),
-      format.colorize({
-        all: true,
-        colors: { info: "blue", warn: "yellow", error: "red", debug: "green" },
-      })
+      format.colorize()
     ),
     transports: [new transports.Console()],
   });
 
-  public info(message: string, data?: Record<string, unknown>): void {
-    this.log("info", message, data);
+  public info(logData: LogInterface): void {
+    this.log("info", logData);
   }
-  public warn(message: string, data?: Record<string, unknown>): void {
-    this.log("warn", message, data);
+  public warn(logData: LogInterface): void {
+    this.log("warn", logData);
   }
-  public error(message: string, data?: Record<string, unknown>): void {
-    this.log("error", message, data);
+  public error(logData: LogInterface): void {
+    this.log("error", logData);
   }
-  public debug(message: string, data?: Record<string, unknown>): void {
-    this.log("debug", message, data);
+  public debug(logData: LogInterface): void {
+    this.log("debug", logData);
   }
-  public log(
-    level: string,
-    message: string,
-    data?: Record<string, unknown>
-  ): void {
-    const requestId = httpContext.get("requestId");
+
+  // this function is used to get request context
+  public contextData(ctx: ContextOptions): void {
+    this.ctxData = ctx;
+  }
+
+  public log(level: string, logData: LogInterface): void {
     const traceId = this.getAwsTraceId();
     const logEntry = {
-      message,
-      level,
-      data,
-      traceId,
-      // label: this.module,
-      hostname: this.hostName,
-      requestId,
       timestamp: new Date(),
+      level,
+      source: logData.source,
+      message: logData.message,
+      data: logData.data,
+      event: logData.event,
+      context: this.ctxData,
+      traceId,
+      hostname: this.hostName,
     };
     this.logger.log(logEntry);
   }

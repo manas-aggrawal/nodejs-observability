@@ -1,8 +1,8 @@
-This package enables **telemetry** in you project.
+This package enables **AWS XRay telemetry** in your project.
 It uses *AWS Distro for Opentelemetry* to trace every request in your project.
-Auto-instrumentation has been done to trace HTTP, DNS, DB, Winston etc services.
+Manual instrumentation of HTTP, DB, Winston etc services has been done.
 TraceId have been injected in logs to co-relate logs and traces.
-Logger instance also comes from this package itself.
+Logger instance also comes from this package itself you just have to import and use it.
 
 
 **Installation**
@@ -10,58 +10,68 @@ Logger instance also comes from this package itself.
 1. Import `adotInit()` in server.ts of your project, on the top, before logger import. This will instrument the telemetry code and initialize the tracer for your project.
    
 
-```
-import {adotInit} from "@studiographene/nodejs-telemetry";
-   adotInit(<resourceServiceName>, <healthCheckEndpointUrl>);
+   ```
+   import {adotInit} from "@studiographene/nodejs-telemetry";
+      adotInit(<resourceServiceName>, <healthCheckEndpointUrl>);
 
-```
-2. Import traceDecorator, which is a decorator function, in all of the files where you want to trace your code.
+   ```
+2. Import traceDecorator, which is a method decorator, in all of the files where you want to trace your code.
 
-```
-import {traceDecorator} from "@studiographene/nodejs-telemetry";
-```
+   ```
+   import {traceDecorator} from "@studiographene/nodejs-telemetry";
+   ```
 
-3. Apply `@traceDecorator` on top of the methods you want to trace.
+3. Apply `@traceDecorator` on top of the methods you want to trace. This decorator will start/end active spans for your method automatically.
 
-```
-@traceDecorator
-public async someFn(){
-   //some code
-}
-```
-4. This trace decorator will automatically create spans and subspans for continuous code and will automatically log any error encountered against that trace. You just have to import logger as well, from the package, in whatever file you want to use the logger.
+   ```
+   @traceDecorator
+   public async someFn(){
+      //some code
+   }
+   ```
+4. This trace decorator will automatically create spans and subspans for continuous code and will automatically log any error encountered against that trace. You have to apply `@traceDecorator` on the subsequent methods as well, which are called within the previous method.
 
-```
-import {logger} from "@studiographene/nodejs-telemetry";
-@traceDecorator
-public async someFn(){
-   logger.info("some message");
-   //some code
-}
-```
-5. In logger there are 4 different types of levels - "info", "warning", "error" and "debug". And you can use them like shown below.
+   ```
+   // controller.ts file
+   import {traceDecorator} from "@studiographene/nodejs-telemetry";
 
-```
-import {logger} from "@studiographene/nodejs-telemetry";
-@traceDecorator
-public async someFn(){
-   logger.info("some message");
-   //or
-   logger.info("mssg",{key:value, key2:value});
+   @traceDecorator
+   public async someFn(){
+      await fn2();
+   }
 
-   logger.debug("some message");
-   //or
-   logger.debug("mssg",{key:value, key2:value});
+   // service.ts file
+   import {traceDecorator} from "@studiographene/nodejs-telemetry";
 
-   logger.warn("some message");
-   //or
-   logger.warn("mssg", {key:value});
+   @traceDecorator
+   public async fn2(){
+      //some code.
+   }
+   ```
+5. In logger there are 4 different types of severity levels - "info", "warning", "error" and "debug".
 
-   logger.error("some message");
-   //or
-   logger.error("some mssg", {key:value});
-   
-}
-```
+   logger options:
+   1. level (required) - info|warning|error|debug
+   2. message (string)(required)
+   3. source (string)(optional) - You can give name of the class and function where the logger is used
+   4. data (Record<string, unknown>)(optional)
+   5. event (string)(optional) - you can add a small description for log event
+
+   Example of 'info' level log.
+   ```
+   import {logger} from "@studiographene/nodejs-telemetry";
+
+   @traceDecorator
+   public async someFn(){
+      logger.info({
+         message: "some message", 
+         source: "class _name.function_name", 
+         data: {
+            key: value
+         }
+         event: "inserting data"
+      });
+   }
+   ```
 
 And you are **Done**!
