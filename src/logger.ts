@@ -4,9 +4,9 @@ import { createLogger, format, transports } from "winston";
 import { Span, context, trace } from "@opentelemetry/api";
 
 interface ContextOptions {
-  url: string;
-  method: string;
-  request_id: string;
+  url?: string;
+  method?: string;
+  request_id?: string;
 }
 
 @Service()
