@@ -4,16 +4,9 @@ import { createLogger, format, transports } from "winston";
 import { Span, context, trace } from "@opentelemetry/api";
 
 interface ContextOptions {
-  url?: string;
-  method?: string;
-  request_id?: string;
-  user?: Record<string, unknown>;
-}
-
-interface LogOptions {
-  source?: string;
-  event?: string;
-  data?: Record<string, unknown>;
+  url: string;
+  method: string;
+  request_id: string;
 }
 
 @Service()
@@ -29,17 +22,33 @@ export class Logger {
     transports: [new transports.Console()],
   });
 
-  public info(message: string, logData?: LogOptions): void {
-    this.log("info", message, logData);
+  public info(
+    message: string,
+    source: string,
+    data?: Record<string, unknown>
+  ): void {
+    this.log("info", message, source, data);
   }
-  public warn(message: string, logData?: LogOptions): void {
-    this.log("warn", message, logData);
+  public warn(
+    message: string,
+    source: string,
+    data?: Record<string, unknown>
+  ): void {
+    this.log("warn", message, source, data);
   }
-  public error(message: string, logData?: LogOptions): void {
-    this.log("error", message, logData);
+  public error(
+    message: string,
+    source: string,
+    data?: Record<string, unknown>
+  ): void {
+    this.log("error", message, source, data);
   }
-  public debug(message: string, logData?: LogOptions): void {
-    this.log("debug", message, logData);
+  public debug(
+    message: string,
+    source: string,
+    data?: Record<string, unknown>
+  ): void {
+    this.log("debug", message, source, data);
   }
 
   // this function is used to get request context
@@ -47,15 +56,19 @@ export class Logger {
     this.ctxData = ctx;
   }
 
-  public log(level: string, message: string, logData: LogOptions): void {
+  public log(
+    level: string,
+    message: string,
+    source: string,
+    data?: Record<string, unknown>
+  ): void {
     const traceId = this.getAwsTraceId();
     const logEntry = {
       timestamp: new Date(),
       level,
-      source: logData?.source,
+      source,
       message,
-      data: logData?.data,
-      event: logData?.event,
+      data,
       context: this.ctxData,
       traceId,
       hostname: this.hostName,

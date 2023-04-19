@@ -53,9 +53,8 @@ Logger instance also comes from this package itself you just have to import and 
    logger options:
    1. level (required) - info|warning|error|debug
    2. message (string)(required)
-   3. source (string)(optional) - You can give name of the class and function where the logger is used
+   3. source (string)(required) - You can give name of the class and function where the logger is used
    4. data (Record<string, unknown>)(optional)
-   5. event (string)(optional) - you can add a small description for log event
 
    Example of 'info' level log.
    ```
@@ -63,13 +62,12 @@ Logger instance also comes from this package itself you just have to import and 
 
    @traceDecorator
    public async someFn(){
-      logger.info("some message", {
-         source: "class _name.function_name", 
-         data: {
+      logger.info("some message", 
+          "source_name", 
+         {
             key: value
          }
-         event: "inserting data"
-      });
+      );
    }
    ```
 
