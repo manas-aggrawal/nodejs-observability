@@ -63,8 +63,7 @@ Logger instance also comes from this package itself you just have to import and 
 
    @traceDecorator
    public async someFn(){
-      logger.info({
-         message: "some message", 
+      logger.info("some message", {
          source: "class _name.function_name", 
          data: {
             key: value
