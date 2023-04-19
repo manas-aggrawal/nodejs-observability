@@ -10,6 +10,7 @@ import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { AwsInstrumentation } from "@opentelemetry/instrumentation-aws-sdk";
 import { WinstonInstrumentation } from "@opentelemetry/instrumentation-winston";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
+import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 
 export function adotInit(
   resourceServiceName: string,
@@ -30,7 +31,7 @@ export function adotInit(
           return req.url === healthCheckEndpointUrl;
         },
       }),
-
+      new ExpressInstrumentation(),
       new AwsInstrumentation({
         suppressInternalInstrumentation: true,
       }),
