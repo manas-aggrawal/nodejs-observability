@@ -20,9 +20,8 @@ export function traceDecorator(target: any, key: string): any {
         return tracer.startActiveSpan(
           `${target.constructor.name}.${_propertyKey}`,
           async (span: Span) => {
-            logger.info({
+            logger.info("SPAN STARTS!", {
               source: `${target.constructor.name}.${_propertyKey}`,
-              message: "SPAN STARTS!",
             });
 
             try {
@@ -31,8 +30,7 @@ export function traceDecorator(target: any, key: string): any {
 
               return result;
             } catch (err) {
-              logger.error({
-                message: err,
+              logger.error(err, {
                 source: `${target.constructor.name}.${_propertyKey}`,
               });
               span.setStatus({
@@ -41,9 +39,8 @@ export function traceDecorator(target: any, key: string): any {
               });
               throw err;
             } finally {
-              logger.info({
+              logger.info("SPAN ENDS!", {
                 source: `${target.constructor.name}.${_propertyKey}`,
-                message: "SPAN ENDS!",
               });
               span.end();
             }
