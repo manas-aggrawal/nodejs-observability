@@ -47,7 +47,11 @@ export class Logger {
 
   // this function is used to get request context
   public contextData(ctx: Record<string, unknown>): void {
-    this.ctxData = ctx;
+    if (this.ctxData) {
+      Object.assign(this.ctxData, ctx);
+    } else {
+      this.ctxData = ctx;
+    }
   }
 
   // this fn to add user context

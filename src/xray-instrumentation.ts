@@ -8,7 +8,6 @@ import { AWSXRayIdGenerator } from "@opentelemetry/id-generator-aws-xray";
 import * as opentelemetry from "@opentelemetry/sdk-node";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { AwsInstrumentation } from "@opentelemetry/instrumentation-aws-sdk";
-import { WinstonInstrumentation } from "@opentelemetry/instrumentation-winston";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 
@@ -35,7 +34,6 @@ export function adotInit(
       new AwsInstrumentation({
         suppressInternalInstrumentation: true,
       }),
-      new WinstonInstrumentation(),
       new PgInstrumentation(),
     ],
     resource: Resource.default().merge(

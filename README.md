@@ -1,6 +1,6 @@
 This package enables **AWS XRay telemetry** in your project.
 It uses *AWS Distro for Opentelemetry* to trace every request in your project.
-Manual instrumentation of HTTP, DB, Winston, express etc services has been done.
+Manual instrumentation of HTTP, DB, express etc services has been done.
 TraceId have been injected in logs to co-relate logs and traces.
 Logger instance also comes from this package itself you just have to import and use it.
 
