@@ -3,16 +3,10 @@ import { Service } from "typedi";
 import { createLogger, format, transports } from "winston";
 import { Span, context, trace } from "@opentelemetry/api";
 
-interface ContextOptions {
-  url?: string;
-  method?: string;
-  request_id?: string;
-}
-
 @Service()
 export class Logger {
   private hostName: string = hostname();
-  private ctxData: ContextOptions;
+  private ctxData: Record<string, unknown>;
 
   public logger = createLogger({
     format: format.combine(
@@ -52,8 +46,13 @@ export class Logger {
   }
 
   // this function is used to get request context
-  public contextData(ctx: ContextOptions): void {
+  public contextData(ctx: Record<string, unknown>): void {
     this.ctxData = ctx;
+  }
+
+  // this fn to add user context
+  public userContext(usrCtx: Record<string, unknown>): void {
+    this.ctxData.user = usrCtx;
   }
 
   public log(
