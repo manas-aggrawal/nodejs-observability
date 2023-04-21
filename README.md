@@ -7,6 +7,34 @@ Logger instance also comes from this package itself you just have to import and 
 
 **Installation**
 
+**For local:-**
+   1. Make a .npmrc file in your project root- 
+      ```
+      engine-strict=true
+      //npm.pkg.github.com/:_authToken=${NPM_TOKEN}
+      @studiographene:registry=https://npm.pkg.github.com
+
+      ```
+   2. In your Dockerfile - add `ARG NPM_TOKEN` 
+
+   3. In docker compose file - 
+      ```
+	   build:
+         args:
+            NPM_TOKEN: ${NPM_TOKEN}
+
+      ```
+   4. Make **Personal Access Token** in github for your local use and replace `${NPM_TOKEN}` in .npmrc file with your token before installing the package and running docker build command.
+   5. Then `npm i @studiographene/nodejs-telemetry`.
+
+**For development environments:-**
+
+   1. 1st & 2nd steps from above remain as it is.
+   2. Add `NPM_TOKEN` in the AWS environment/parameter store.
+
+
+**Getting Started**
+
 1. Import `adotInit()` in server.ts of your project, on the top, before logger import. This will instrument the telemetry code and initialize the tracer for your project.
    
 
@@ -70,5 +98,11 @@ Logger instance also comes from this package itself you just have to import and 
       );
    }
    ```
+6. Also, Request context i.e. request url, request method and request id, and user context i.e. user id can also be passed in logs using below mentioned functions.
+   ```
+   contextData(ctx: Record<string, unknown>)
 
+   userContext(usrCtx: Record<string, unknown>)
+
+   ```
 And you are **Done**!
