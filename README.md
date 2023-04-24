@@ -98,11 +98,13 @@ Logger instance also comes from this package itself you just have to import and 
       );
    }
    ```
-6. Also, Request context i.e. request url, request method and request id, and user context i.e. user id can also be passed in logs using below mentioned functions.
+6. Also, Request context (i.e. request url, request method, and request id) and user context (i.e. user id) can also be passed in logs using below mentioned functions.
    ```
    contextData(ctx: Record<string, unknown>)
 
    userContext(usrCtx: Record<string, unknown>)
 
    ```
+   contextData() must be called first using a middleware passing request data like url, method and request Id. After this you can call userContext() to pass some user context.
+
 And you are **Done**!
