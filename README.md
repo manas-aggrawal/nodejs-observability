@@ -15,7 +15,7 @@ Logger instance also comes from this package itself you just have to import and 
       @studiographene:registry=https://npm.pkg.github.com
 
       ```
-   2. In your Dockerfile - add `ARG NPM_TOKEN` 
+   2. In your Dockerfile - add `ARG NPM_TOKEN` and `COPY .npmrc .npmrc` 
 
    3. In docker compose file - 
       ```
@@ -24,13 +24,14 @@ Logger instance also comes from this package itself you just have to import and 
             NPM_TOKEN: ${NPM_TOKEN}
 
       ```
-   4. Make **Personal Access Token** in github for your local use and replace `${NPM_TOKEN}` in .npmrc file with your token before installing the package and running docker build command.
+   4. Make **Personal Access Token** (PAT) in github for your local use and replace `${NPM_TOKEN}` in .npmrc file with your token before installing the package and running docker build command.
    5. Then `npm i @studiographene/nodejs-telemetry`.
 
 **For development environments:-**
 
    1. 1st & 2nd steps from above remain as it is.
-   2. Add `NPM_TOKEN` in the AWS environment/parameter store.
+   2. Use value of PAT created above to create github secret named `NPM_TOKEN`. 
+   3. Add `NPM_TOKEN` in the AWS environment/parameter store.
 
 
 **Getting Started**
