@@ -5,16 +5,20 @@ import { Span, context, trace } from "@opentelemetry/api";
 
 @Service()
 export class Logger {
+
+  private logger;
   private hostName: string = hostname();
   private ctxData: Record<string, unknown>;
 
-  public logger = createLogger({
-    format: format.combine(
-      format.json({ deterministic: false }),
-      format.colorize()
-    ),
-    transports: [new transports.Console()],
-  });
+
+  constructor() {
+    this.logger = createLogger({
+      format: format.combine(
+        format.json({ deterministic: false }),
+      ),
+      transports: [new transports.Console()],
+    });
+  }
 
   public info(
     message: string,
@@ -55,7 +59,7 @@ export class Logger {
     this.ctxData.user = usrCtx;
   }
 
-  public log(
+  private log(
     level: string,
     message: string,
     source: string,
@@ -73,6 +77,7 @@ export class Logger {
       hostname: this.hostName,
     };
     this.logger.log(logEntry);
+    
   }
   // Method to convert opentelemetry trace Id to AWS Xray trace Id.
   private getAwsTraceId(): string {

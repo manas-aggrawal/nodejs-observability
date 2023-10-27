@@ -1,6 +1,6 @@
 {
   "name": "@studiographene/nodejs-telemetry",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "tracing and logging using aws distro for opentelemetry",
   "main": "dist/index.js",
   "repository": "https://github.com/studiographene/nodejs-telemetry.git",
@@ -30,6 +30,7 @@
     "@opentelemetry/instrumentation-aws-sdk": "^0.34.0",
     "@opentelemetry/instrumentation-express": "^0.32.1",
     "@opentelemetry/instrumentation-http": "^0.38.0",
+    "@opentelemetry/instrumentation-nestjs-core": "^0.33.2",
     "@opentelemetry/instrumentation-pg": "^0.35.0",
     "@opentelemetry/propagator-aws-xray": "^1.2.0",
     "@opentelemetry/resources": "^1.11.0",

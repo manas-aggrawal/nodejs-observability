@@ -28,7 +28,7 @@ export function traceDecorator(target: any, key: string): any {
             try {
               const result = await originalMethod.apply(this, args);
               span.setStatus({ code: SpanStatusCode.OK });
-
+              span.setAttribute('span.response', JSON.stringify(result));
               return result;
             } catch (err) {
               logger.error(err, `${target.constructor.name}.${_propertyKey}`);

@@ -10,12 +10,18 @@ import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { AwsInstrumentation } from "@opentelemetry/instrumentation-aws-sdk";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
+import { NestInstrumentation } from "@opentelemetry/instrumentation-nestjs-core"
 
 export function adotInit(
   resourceServiceName: string,
-  healthCheckEndpointUrl: string
+  healthCheckEndpointUrl: string,
+  localhostConfig: { enable: boolean, endpoint:string }
 ) {
-  const traceExporter = new OTLPTraceExporter();
+  
+  const traceExporter = localhostConfig.enable ? new OTLPTraceExporter({
+   url: localhostConfig.endpoint
+  }): new OTLPTraceExporter();
+
 
   const spanProcessor = new BatchSpanProcessor(traceExporter);
   const tracerConfig = {
@@ -31,6 +37,7 @@ export function adotInit(
         },
       }),
       new ExpressInstrumentation(),
+      new NestInstrumentation(),
       new AwsInstrumentation({
         suppressInternalInstrumentation: true,
       }),

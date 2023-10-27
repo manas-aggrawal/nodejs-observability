@@ -41,9 +41,10 @@ Logger instance also comes from this package itself you just have to import and 
 
    ```
    import {adotInit} from "@studiographene/nodejs-telemetry";
-      adotInit(<resourceServiceName>, <healthCheckEndpointUrl>);
+      adotInit(<resourceServiceName>, <healthCheckEndpointUrl>, <localhostConfig>);
 
    ```
+   "localhostConfig" has two options "enable" (boolean) and "endpoint" (localhost url with port, where you want to export the traces).
 2. Import traceDecorator, which is a method decorator, in all of the files where you want to trace your code.
 
    ```
