@@ -1,6 +1,6 @@
 {
   "name": "@studiographene/nodejs-telemetry",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "tracing and logging using aws distro for opentelemetry",
   "main": "dist/index.js",
   "repository": "https://github.com/studiographene/nodejs-telemetry.git",
