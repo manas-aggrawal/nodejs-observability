@@ -19,7 +19,7 @@
     "opentelemetry"
   ],
   "author": "Manas Aggrawal",
-  "license": "ISC",
+  "license": "Proprietary",
   "devDependencies": {
     "@types/node": "^18.15.11",
     "typescript": "^5.0.3"
