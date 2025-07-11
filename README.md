@@ -5,26 +5,6 @@ TraceId have been injected in logs to co-relate logs and traces.
 Logger instance also comes from this package itself you just have to import and use it.
 
 
-**Installation**
-
-**For local:-**
-
-   1. In docker compose file - 
-      ```
-	   build:
-         args:
-            NPM_TOKEN: ${NPM_TOKEN}
-
-      ```
-   2. Then `npm i nodejs-observability`.
-
-**For development environments:-**
-
-   1. 1st & 2nd steps from above remain as it is.
-   2. Use value of PAT created above to create github secret named `NPM_TOKEN`. 
-   3. Add `NPM_TOKEN` in the AWS environment/parameter store.
-
-
 **Getting Started**
 
 1. Import `adotInit()` in server.ts of your project, on the top, before logger import. This will instrument the telemetry code and initialize the tracer for your project.
