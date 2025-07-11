@@ -8,24 +8,15 @@ Logger instance also comes from this package itself you just have to import and 
 **Installation**
 
 **For local:-**
-   1. Make a .npmrc file in your project root- 
-      ```
-      engine-strict=true
-      //npm.pkg.github.com/:_authToken=${NPM_TOKEN}
-      @studiographene:registry=https://npm.pkg.github.com
 
-      ```
-   2. In your Dockerfile - add `ARG NPM_TOKEN` and `COPY .npmrc .npmrc` 
-
-   3. In docker compose file - 
+   1. In docker compose file - 
       ```
 	   build:
          args:
             NPM_TOKEN: ${NPM_TOKEN}
 
       ```
-   4. Make **Personal Access Token** (PAT) in github for your local use and replace `${NPM_TOKEN}` in .npmrc file with your token before installing the package and running docker build command.
-   5. Then `npm i @studiographene/nodejs-telemetry`.
+   2. Then `npm i nodejs-observability`.
 
 **For development environments:-**
 
@@ -40,15 +31,29 @@ Logger instance also comes from this package itself you just have to import and 
    
 
    ```
-   import {adotInit} from "@studiographene/nodejs-telemetry";
+   import {adotInit} from "nodejs-observability";
       adotInit(<resourceServiceName>, <healthCheckEndpointUrl>, <localhostConfig>);
 
    ```
    "localhostConfig" has two options "enable" (boolean) and "endpoint" (localhost url with port, where you want to export the traces).
+
+   One example of endpoint can be "http://localhost:4317", when you are running a docker image for jaegerUI like this:-
+
+   
+```
+   docker run -d --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+
+```   
+
 2. Import traceDecorator, which is a method decorator, in all of the files where you want to trace your code.
 
    ```
-   import {traceDecorator} from "@studiographene/nodejs-telemetry";
+   import {traceDecorator} from "nodejs-observability";
    ```
 
 3. Apply `@traceDecorator` on top of the methods you want to trace. This decorator will start/end active spans for your method automatically.
@@ -63,7 +68,7 @@ Logger instance also comes from this package itself you just have to import and 
 
    ```
    // controller.ts file
-   import {traceDecorator} from "@studiographene/nodejs-telemetry";
+   import {traceDecorator} from "nodejs-observability";
 
    @traceDecorator
    public async someFn(){
@@ -71,7 +76,7 @@ Logger instance also comes from this package itself you just have to import and 
    }
 
    // service.ts file
-   import {traceDecorator} from "@studiographene/nodejs-telemetry";
+   import {traceDecorator} from "nodejs-observability";
 
    @traceDecorator
    public async fn2(){
@@ -88,7 +93,7 @@ Logger instance also comes from this package itself you just have to import and 
 
    Example of 'info' level log.
    ```
-   import {logger} from "@studiographene/nodejs-telemetry";
+   import {logger} from "nodejs-observability";
 
    @traceDecorator
    public async someFn(){
