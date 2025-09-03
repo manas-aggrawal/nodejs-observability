@@ -1,6 +1,6 @@
 {
   "name": "nodejs-observability",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "tracing and logging using aws distro for opentelemetry",
   "main": "dist/index.js",
   "repository": "https://github.com/manas-aggrawal/nodejs-observability.git",
@@ -19,7 +19,7 @@
     "opentelemetry"
   ],
   "author": "Manas Aggrawal",
-  "license": "ISC",
+  "license": "Proprietary",
   "devDependencies": {
     "@types/node": "^18.15.11",
     "typescript": "^5.0.3"
