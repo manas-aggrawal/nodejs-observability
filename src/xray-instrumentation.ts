@@ -3,6 +3,10 @@ import { AlwaysOnSampler } from "@opentelemetry/sdk-trace-base";
 import { initTelemetry } from "./telemetry/init";
 import { aws } from "./telemetry/presets";
 
+// Module-scoped flag so the deprecation warning fires once per process,
+// not once per call.
+let warned = false;
+
 /**
  * @deprecated AWS-only convenience kept for v1 callers. Prefer
  * `initTelemetry(presets.aws({...}))` (or any other preset) — the new API is
@@ -16,6 +20,16 @@ export function adotInit(
   healthCheckEndpointUrl: string,
   localhostConfig: { enable: boolean; endpoint: string }
 ): void {
+  if (!warned) {
+    warned = true;
+    process.emitWarning(
+      "`adotInit` is deprecated and will be removed in v2.0.0 (target 2026-08-01). " +
+        "Migrate to `initTelemetry(presets.aws({...}))`. " +
+        "See https://github.com/manas-aggrawal/nodejs-observability/blob/master/DEPRECATIONS.md",
+      "DeprecationWarning"
+    );
+  }
+
   const options = aws({
     serviceName: resourceServiceName,
     healthCheckPath: healthCheckEndpointUrl,
