@@ -1,0 +1,125 @@
+# OpenTelemetry Collector — Honeycomb sidecar config for the nodejs-
+# observability package. App sends OTLP/gRPC on :4317; this collector
+# tail-samples traces (keeping all errors + slow + a baseline %), then
+# forwards every signal to Honeycomb over OTLP/HTTP.
+#
+# Required env vars:
+#   HONEYCOMB_API_KEY   — Honeycomb ingest key (required)
+#   HONEYCOMB_ENDPOINT  — optional override, defaults to https://api.honeycomb.io
+#
+# IMPORTANT: tail_sampling requires `otelcol-contrib` (not the core
+# `otelcol` binary) — it lives in the contrib distribution.
+#
+# Sampling interaction with the SDK:
+#   This collector tail-samples whatever reaches it. The package SDK
+#   *also* head-samples at 10% by default (see initTelemetry). So with
+#   defaults: 10% head → tail keeps errors + 10% of remainder → vendor
+#   sees ~10% of errors + ~1% of normal traces.
+#   For best results with tail sampling, raise the SDK head rate:
+#     initTelemetry({ traces: { sampleRate: 1.0 }, ... })
+#   That way the tail processor sees every trace and can keep every
+#   error (vs only the head-sampled ones).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Backpressure: bail before OOMing the host. Tune limit_mib for the
+  # deployment size — 400 MiB is fine for a per-pod sidecar.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+    spike_limit_mib: 100
+
+  # Tail-based sampling: holds spans in memory until the trace is "complete"
+  # (no new spans for decision_wait), then decides keep/drop based on the
+  # whole trace. Drops the noise, keeps everything interesting.
+  #
+  # Memory note: num_traces × expected_new_traces_per_sec roughly bounds
+  # heap usage. Tune both if the collector OOMs or if traces are missed
+  # because the buffer rolled over before decision_wait elapsed.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      # 1) Keep every errored trace. Non-negotiable — these are the ones
+      #    you'll actually look at. status_code policy matches the OTel
+      #    span status, not HTTP status — set via setStatus(ERROR) by
+      #    instrumentations or your code.
+      - name: keep-errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+
+      # 2) Keep every slow trace. 1000ms is a starting point — tighten or
+      #    loosen to match your SLO. Useful for catching latency outliers
+      #    that aren't strictly errors.
+      - name: keep-slow
+        type: latency
+        latency:
+          threshold_ms: 1000
+
+      # 3) Probabilistic baseline for healthy traffic. Tune downward to
+      #    cut vendor cost; tune upward when you need denser sampling to
+      #    debug a regression.
+      - name: probabilistic-baseline
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+  # Per-request overhead to Honeycomb is non-trivial; batching is what makes
+  # ingest costs sane. 200ms / 8192 spans are well under Honeycomb's limits.
+  batch:
+    timeout: 200ms
+    send_batch_size: 8192
+
+exporters:
+  # Honeycomb accepts OTLP/HTTP directly on :443. The team key authenticates;
+  # dataset is inferred from `service.name` resource attribute on the spans.
+  otlphttp/honeycomb:
+    endpoint: ${env:HONEYCOMB_ENDPOINT:-https://api.honeycomb.io}
+    headers:
+      x-honeycomb-team: ${env:HONEYCOMB_API_KEY}
+
+  # Pretty-prints every signal to stdout. Useful during dev / first-time
+  # setup; remove from pipelines below before going to prod.
+  debug:
+    verbosity: detailed
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    # Traces pipeline: tail_sampling must come BEFORE batch — it needs to
+    # see complete traces to make a decision, then hand the kept spans
+    # downstream for batching.
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, tail_sampling, batch]
+      exporters: [otlphttp/honeycomb, debug]
+
+    # Metrics aren't sampled — they're pre-aggregated, every point counts.
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/honeycomb, debug]
+
+    # Logs aren't sampled either; control log volume via app-level log
+    # levels rather than at the collector.
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/honeycomb, debug]

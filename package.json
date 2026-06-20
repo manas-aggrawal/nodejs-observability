@@ -8,6 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "prepare": "npm run build",
+    "dev:pack": "./scripts/dev-pack.sh",
     "version": "git add -A src",
     "postversion": "git push && git push --tags"
   },
@@ -25,23 +26,27 @@
     "typescript": "^5.0.3"
   },
   "dependencies": {
-    "@opentelemetry/exporter-trace-otlp-grpc": "^0.37.0",
-    "@opentelemetry/id-generator-aws-xray": "^1.1.1",
-    "@opentelemetry/instrumentation-aws-sdk": "^0.34.0",
-    "@opentelemetry/instrumentation-express": "^0.32.1",
-    "@opentelemetry/instrumentation-http": "^0.38.0",
-    "@opentelemetry/instrumentation-nestjs-core": "^0.33.2",
-    "@opentelemetry/instrumentation-pg": "^0.35.0",
-    "@opentelemetry/propagator-aws-xray": "^1.2.0",
-    "@opentelemetry/resources": "^1.11.0",
-    "@opentelemetry/sdk-node": "^0.37.0",
-    "@opentelemetry/sdk-trace-base": "^1.11.0",
-    "@opentelemetry/semantic-conventions": "^1.11.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.218.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.218.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.218.0",
+    "@opentelemetry/id-generator-aws-xray": "^2.1.0",
+    "@opentelemetry/instrumentation-aws-sdk": "^0.73.0",
+    "@opentelemetry/instrumentation-express": "^0.66.0",
+    "@opentelemetry/instrumentation-http": "^0.218.0",
+    "@opentelemetry/instrumentation-nestjs-core": "^0.64.0",
+    "@opentelemetry/instrumentation-pg": "^0.70.0",
+    "@opentelemetry/propagator-aws-xray": "^2.2.0",
+    "@opentelemetry/resources": "^2.7.0",
+    "@opentelemetry/sdk-node": "^0.218.0",
+    "@opentelemetry/sdk-trace-base": "^2.7.0",
+    "@opentelemetry/semantic-conventions": "^1.41.0",
     "express-http-context": "^1.2.4",
     "typedi": "^0.10.0",
     "winston": "^3.8.2"
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "examples/**/*"
   ]
 }
