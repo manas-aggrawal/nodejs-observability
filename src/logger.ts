@@ -12,6 +12,24 @@ import { Span, context, trace } from "@opentelemetry/api";
  *
  * Planned removal: v2.0.0 (target 2026-08-01). See DEPRECATIONS.md.
  */
+// Module-scoped flag so the deprecation warning fires once per process,
+// not once per log call. Triggered on first use of any Logger method —
+// can't be in the constructor because the singleton is instantiated at
+// module load (importing the package would warn even on v1.1+ users who
+// only use otelLogger).
+let warned = false;
+const emitDeprecationWarning = () => {
+  if (warned) return;
+  warned = true;
+  process.emitWarning(
+    "`logger` (Winston → stdout) is deprecated and will be removed in v2.0.0 " +
+      "(target 2026-08-01). It still works in v1.1.x but does NOT flow through " +
+      "the OTLP logs pipeline. Migrate to `otelLogger` for OTLP-correlated logs. " +
+      "See https://github.com/manas-aggrawal/nodejs-observability/blob/master/DEPRECATIONS.md",
+    "DeprecationWarning"
+  );
+};
+
 @Service()
 export class Logger {
 
@@ -76,6 +94,7 @@ export class Logger {
     source: string,
     data?: Record<string, unknown>
   ): void {
+    emitDeprecationWarning();
     const traceId = this.getAwsTraceId();
     const logEntry = {
       timestamp: new Date(),

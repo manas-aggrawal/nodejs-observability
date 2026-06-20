@@ -430,6 +430,10 @@ Browser auto-instrumentations capture full URLs (including query strings) and us
 
 ## Migrating from v1.x
 
+**Upgrading from `1.0.x` to `1.1.x` is non-breaking.** Your existing `adotInit(...)` and `logger.info(...)` calls keep working unchanged. You'll see soft `@deprecated` warnings in your IDE and a one-time `DeprecationWarning` on stderr when each deprecated function is first called. Migrate at your own pace; the deprecated symbols stay until v2.0.0 (target 2026-08-01).
+
+One thing to be aware of while still on the deprecated `logger`: it writes JSON to stdout via Winston exactly as it did in v1.0.x. It does **not** auto-flow through the new OTLP logs pipeline — so if you want logs correlated with traces in your observability backend, swap the import to `otelLogger` (single-line change).
+
 `adotInit` and the legacy Winston `logger` are deprecated. See [DEPRECATIONS.md](DEPRECATIONS.md) for full side-by-side migrations and the removal timeline (v2.0.0, target 2026-08-01).
 
 Quick version:
