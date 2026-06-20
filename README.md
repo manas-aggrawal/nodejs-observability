@@ -1,15 +1,16 @@
 # nodejs-observability
 
-A comprehensive AWS X-Ray telemetry package for Node.js applications using AWS Distro for OpenTelemetry (ADOT). This package provides automatic instrumentation, distributed tracing, and correlated logging with minimal configuration.
+A vendor-agnostic OpenTelemetry package for Node.js / NestJS / Express. Pluggable presets for AWS X-Ray + CloudWatch, Honeycomb, Jaeger / Tempo, or any OTLP-native backend. Ships traces, metrics, and logs through a single sidecar collector with cost-mindful defaults.
 
 ## Features
 
-- 🔍 **Automatic Instrumentation** - HTTP, Database, Express and other services
-- 📊 **Distributed Tracing** - Full request tracing with AWS X-Ray
-- 📝 **Correlated Logging** - TraceId injection for log-trace correlation
-- 🎯 **Method-level Tracing** - Decorator-based span creation
-- 🛠️ **Built-in Logger** - Structured logging with severity levels
-- 🏃 **Local Development** - Jaeger support for local testing
+- 🔌 **Pluggable presets** — `presets.aws()`, `presets.honeycomb()`, `presets.otlp()`, `presets.local()`
+- 🔍 **Auto-instrumentation** — HTTP, Express, NestJS, AWS SDK, Postgres
+- 📊 **All three signals** — traces, metrics, logs through the same OTLP pipeline
+- 🎯 **Method-level tracing** — `@traceDecorator` (NestJS-controller-safe)
+- 💸 **Cost-mindful by default** — 10% head sampling, tunable per-deploy
+- 🧩 **SOLID-shaped exporter factory** — bring your own SpanExporter / MetricExporter / LogExporter
+- 🌐 **End-to-end correlation** — extracts W3C `traceparent` from incoming requests
 
 ## Installation
 
@@ -19,382 +20,505 @@ npm install nodejs-observability
 
 ## Quick Start
 
-### 1. Initialize Telemetry
+### 1. Initialize at process start
 
-Import `adotInit()` at the very top of your `server.ts` file, before any other imports:
+Import and call `initTelemetry` at the very top of your entry file, **before any other imports**. The SDK has to register hooks before the modules it patches are loaded.
 
 ```typescript
-import { adotInit } from "nodejs-observability";
+// main.ts
+import { initTelemetry, presets } from "nodejs-observability";
 
-adotInit(
-  "my-service-name",           // Service name for traces
-  "/health",                    // Health check endpoint to exclude
-  {                            // Local development config (optional)
-    enable: true,
-    endpoint: "http://localhost:4317"
-  }
-);
+initTelemetry(presets.honeycomb({
+  serviceName: "checkout",
+  healthCheckPath: "/health",
+}));
 
 // Other imports follow...
-import { logger } from "nodejs-observability";
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+// ...
 ```
 
-### 2. Add Method Tracing
+Pick a preset based on where your collector exports to:
 
-Use the `@traceDecorator` to automatically create spans for your methods:
+| Preset | When to use |
+|---|---|
+| `presets.aws(...)` | Collector exports to AWS X-Ray / CloudWatch. Sets X-Ray propagator + ID generator. |
+| `presets.honeycomb(...)` / `presets.otlp(...)` / `presets.local(...)` | Collector exports to Honeycomb, Tempo, Jaeger, or any OTLP-native backend. All three are aliases — W3C trace context + random IDs. Different names so call sites self-document intent. |
+
+All presets send OTLP/gRPC to `localhost:4317` by default (sidecar pattern). Override with `collectorEndpoint` if your collector is elsewhere.
+
+### 2. Trace methods with the decorator
 
 ```typescript
 import { traceDecorator } from "nodejs-observability";
 
-class UserService {
+class OrderService {
   @traceDecorator
-  public async getUser(id: string) {
-    // This method is now automatically traced
-    const user = await db.findUser(id);
-    return user;
-  }
-  
-  @traceDecorator
-  public async updateUser(id: string, data: any) {
-    // Nested traces are automatically linked
-    await this.validateUser(id);
-    return await db.updateUser(id, data);
-  }
-  
-  @traceDecorator
-  private async validateUser(id: string) {
-    // Creates a child span under updateUser
-    // Errors are automatically captured
+  async processOrder(orderId: string) {
+    // automatically traced, nested under any active parent span
   }
 }
 ```
 
-### 3. Use the Logger
+The decorator composes with NestJS controller decorators — `@traceDecorator` can sit above `@Get()`, `@Post()`, `@UseGuards()`, etc. without breaking route registration. The decorator does **not** auto-emit logs or metrics; add those explicitly where you need them.
 
-The built-in logger automatically includes TraceId for correlation:
+### 3. Add logs and metrics on demand
 
 ```typescript
-import { logger } from "nodejs-observability";
+import { otelLogger, metrics } from "nodejs-observability";
 
-@traceDecorator
-public async processOrder(orderId: string) {
-  logger.info(
-    "Processing order",
-    "OrderService.processOrder",
-    { orderId, status: "started" }
-  );
-  
-  try {
-    const result = await this.executeOrder(orderId);
-    
-    logger.info(
-      "Order processed successfully",
-      "OrderService.processOrder",
-      { orderId, result }
-    );
-    
-    return result;
-  } catch (error) {
-    logger.error(
-      "Order processing failed",
-      "OrderService.processOrder",
-      { orderId, error: error.message }
-    );
-    throw error;
-  }
-}
+// Logs ride the same OTLP pipeline as traces.
+// trace_id + span_id are attached natively; backend correlates automatically.
+otelLogger.info("Order processed", "OrderService.processOrder", { orderId });
+
+// Metrics are explicit. Memoized — repeat calls return the same instrument.
+const ordersProcessed = metrics.counter("orders.processed");
+ordersProcessed.add(1, { tier: "premium" });
+
+const orderDuration = metrics.histogram("orders.duration_ms");
+orderDuration.record(elapsedMs);
 ```
 
-### 4. Add Context Information
+## Complete Example
 
-Enrich your logs with request and user context:
+A single Nest entrypoint that wires up all three signals:
 
-```typescript
-import { contextData, userContext } from "nodejs-observability";
+```ts
+// main.ts — initTelemetry MUST be the first non-type code in this file
+import { initTelemetry, presets } from "nodejs-observability";
 
-// Middleware to add request context
-app.use((req, res, next) => {
-  contextData({
-    url: req.url,
-    method: req.method,
-    requestId: req.headers['x-request-id']
+initTelemetry({
+  ...presets.honeycomb({
+    serviceName: "checkout",
+    healthCheckPath: "/health",
+  }),
+  metrics: {
+    exporter: "otlp-grpc",
+    endpoint: "http://localhost:4317",
+    exportIntervalMs: 60000,
+  },
+  logs: {
+    exporter: "otlp-grpc",
+    endpoint: "http://localhost:4317",
+  },
+});
+
+// Imports below this line — they pick up the patched modules
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: ["https://your-frontend.example.com"],
+    allowedHeaders: ["content-type", "authorization", "traceparent", "tracestate"],
   });
-  next();
-});
-
-// Add user context after authentication
-app.use(authMiddleware, (req, res, next) => {
-  if (req.user) {
-    userContext({
-      userId: req.user.id,
-      role: req.user.role
-    });
-  }
-  next();
-});
+  await app.listen(3000);
+}
+bootstrap();
 ```
+
+A service using the decorator + logger + metrics together:
+
+```ts
+// orders.service.ts
+import { Injectable } from "@nestjs/common";
+import { traceDecorator, otelLogger, metrics } from "nodejs-observability";
+
+@Injectable()
+export class OrdersService {
+  private readonly invocations = metrics.counter("orders.processed");
+  private readonly duration = metrics.histogram("orders.duration_ms");
+
+  @traceDecorator
+  async processOrder(orderId: string) {
+    const start = Date.now();
+    otelLogger.info("Processing order", "OrdersService.processOrder", { orderId });
+
+    try {
+      const result = await this.doWork(orderId);
+      this.invocations.add(1, { status: "ok" });
+      return result;
+    } catch (err) {
+      otelLogger.error("Failed to process", "OrdersService.processOrder", {
+        orderId,
+        error: (err as Error).message,
+      });
+      this.invocations.add(1, { status: "error" });
+      throw err;
+    } finally {
+      this.duration.record(Date.now() - start, { handler: "processOrder" });
+    }
+  }
+
+  private async doWork(orderId: string) { /* ... */ }
+}
+```
+
+Correlation across signals is automatic — every log line and span in this request share the same `trace_id`, and metrics carry the `service.name` resource attribute so they group with the matching traces in the backend.
 
 ## API Reference
 
-### `adotInit(serviceName, healthCheckUrl, localhostConfig?)`
+### `initTelemetry(options: TelemetryOptions)`
 
-Initializes the telemetry system.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `serviceName` | `string` | Name of your service in traces |
-| `healthCheckUrl` | `string` | Endpoint to exclude from tracing |
-| `localhostConfig` | `object` | Optional local development configuration |
-| `localhostConfig.enable` | `boolean` | Enable local tracing |
-| `localhostConfig.endpoint` | `string` | Local collector endpoint |
-
-### `@traceDecorator`
-
-Method decorator that automatically creates spans.
+Single entry point. Returns the started `NodeSDK`.
 
 ```typescript
-@traceDecorator
-async myMethod() {
-  // Automatically traced
+interface TelemetryOptions {
+  serviceName: string;
+  traces?: TracesConfig;
+  metrics?: MetricsConfig;
+  logs?: LogsConfig;
+  extraInstrumentations?: Instrumentation[];
+}
+
+interface TracesConfig {
+  exporter?: SpanExporter | "otlp-grpc" | "otlp-http" | "otlp-proto" | "none";
+  endpoint?: string;
+  headers?: Record<string, string>;
+  sampler?: Sampler;
+  sampleRate?: number;          // 0.0–1.0; default 0.1 (10%)
+  propagator?: TextMapPropagator;
+  idGenerator?: IdGenerator;
+  instrumentations?: Instrumentation[];
+  ignoreIncomingPaths?: string[];
+}
+
+interface MetricsConfig {
+  exporter?: PushMetricExporter | OtlpTransport | "none";
+  endpoint?: string;
+  headers?: Record<string, string>;
+  exportIntervalMs?: number;    // default 60s
+}
+
+interface LogsConfig {
+  exporter?: LogRecordExporter | OtlpTransport | "none";
+  endpoint?: string;
+  headers?: Record<string, string>;
 }
 ```
 
-### Logger Methods
+### `presets`
 
-All logger methods follow the pattern: `logger.level(message, source, data?)`
+Pure factories returning a `TelemetryOptions`. Compose them with `initTelemetry()`.
 
-```typescript
-logger.info(message: string, source: string, data?: Record<string, unknown>)
-logger.warning(message: string, source: string, data?: Record<string, unknown>)
-logger.error(message: string, source: string, data?: Record<string, unknown>)
-logger.debug(message: string, source: string, data?: Record<string, unknown>)
+#### `presets.aws(args)`
+
+X-Ray propagator + X-Ray ID generator + OTLP gRPC to a local collector (typically the ADOT collector translating to AWS X-Ray / CloudWatch).
+
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `serviceName` | `string` | required | Service name attached to every span, metric, and log record. |
+| `collectorEndpoint` | `string` | `http://localhost:4317` | Where the SDK sends OTLP. Override for non-sidecar setups. |
+| `healthCheckPath` | `string` | — | HTTP path to exclude from incoming-request traces. |
+
+#### `presets.otlp(args)` &nbsp; *(aliases: `presets.honeycomb`, `presets.local`)*
+
+W3C trace context propagator + random IDs + OTLP gRPC to a local collector. All three names produce identical SDK config — pick the alias that matches your intent (`honeycomb` for Honeycomb-bound collectors, `local` for dev, `otlp` as the neutral choice).
+
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `serviceName` | `string` | required | Service name. |
+| `collectorEndpoint` | `string` | `http://localhost:4317` | OTLP endpoint. |
+| `healthCheckPath` | `string` | — | HTTP path to exclude from incoming-request traces. |
+
+### `@traceDecorator`
+
+Class method decorator. Wraps the method in an active span. Composes with NestJS / Express controller decorators in either order.
+
+### `otelLogger`
+
+```ts
+otelLogger.debug(message: string, source: string, data?: Record<string, unknown>)
+otelLogger.info(...)
+otelLogger.warn(...)
+otelLogger.error(...)
 ```
 
-### Context Methods
+Emits OTel `LogRecord`s through the LoggerProvider configured by `initTelemetry`. Trace correlation is automatic.
 
-```typescript
-contextData(ctx: Record<string, unknown>)  // Set request context
-userContext(usrCtx: Record<string, unknown>)  // Set user context
+### `metrics`
+
+```ts
+metrics.counter(name, options?): Counter
+metrics.histogram(name, options?): Histogram
+metrics.upDownCounter(name, options?): UpDownCounter
+metrics.gauge(name, options?): Gauge
 ```
+
+Memoized — repeat calls with the same instrument name return the same instance, so it's safe to call inline at the use site.
+
+## Sampling
+
+The package defaults to **10% head sampling** with `ParentBasedSampler(TraceIdRatioBasedSampler(0.1))`. Either the whole trace is sampled in, or the whole trace is dropped — never half a trace.
+
+Per-service override:
+
+```ts
+initTelemetry({
+  serviceName: "checkout",
+  traces: { sampleRate: 0.05 },   // 5%
+});
+```
+
+Or pass a full `Sampler` for richer strategies. For best results with the collector's tail sampling (see [Collector](#collector) below), bump SDK head sampling to `1.0` — that way every trace reaches the collector, and the tail processor decides what's worth exporting.
+
+## Collector
+
+The example collector config bundled in this package (`examples/collector-config.yaml`) ships a Honeycomb-targeted sidecar with:
+
+- OTLP gRPC on `:4317`, HTTP on `:4318`
+- `memory_limiter` → `tail_sampling` → `batch` processors
+- Tail policies: keep all errors, keep slow (>1s), 10% probabilistic baseline
+- Traces / metrics / logs pipelines all wired
+
+`tail_sampling` requires `otelcol-contrib` (not the core `otelcol` binary).
+
+For AWS X-Ray / CloudWatch, swap the `otlphttp/honeycomb` exporter for `awsxray` + `awsemf` + `awscloudwatchlogs` and adjust pipeline `exporters:` lists. App code doesn't change — vendor routing lives entirely in the collector.
 
 ## Local Development
 
-For local development and testing, you can use Jaeger to visualize traces:
-
-### 1. Start Jaeger
+Run a local OTel Collector or Jaeger:
 
 ```bash
 docker run -d --name jaeger \
   -e COLLECTOR_OTLP_ENABLED=true \
-  -p 16686:16686 \
-  -p 4317:4317 \
-  -p 4318:4318 \
+  -p 16686:16686 -p 4317:4317 -p 4318:4318 \
   jaegertracing/all-in-one:latest
 ```
 
-### 2. Configure Local Tracing
+Point the SDK at it:
 
-```typescript
-adotInit("my-service", "/health", {
-  enable: true,
-  endpoint: "http://localhost:4317"
-});
+```ts
+initTelemetry(presets.local({ serviceName: "my-service" }));
+// `local` is an alias of `otlp` — both default to localhost:4317.
 ```
 
-### 3. View Traces
+Open the Jaeger UI at http://localhost:16686.
 
-Open Jaeger UI at `http://localhost:16686` to view your traces.
+## End-to-End Tracing (Frontend → Backend)
 
-## Best Practices
+This package handles the backend half of a frontend-initiated trace automatically. The W3C trace context propagator (built into `presets.otlp()`) extracts the `traceparent` header from incoming HTTP requests, so spans created in your NestJS handlers become children of the frontend's root span — no extra backend code needed.
 
-### 1. Trace Key Operations
-Apply `@traceDecorator` to:
-- API route handlers
-- Database operations
-- External API calls
-- Business logic methods
-- Error-prone operations
+The frontend half is wired up in your React / React Native app using the official OTel browser SDKs (not this package — this package is Node-only).
 
-### 2. Use Structured Logging
-```typescript
-// Good
-logger.info("User created", "UserService.create", {
-  userId: user.id,
-  email: user.email,
-  timestamp: Date.now()
-});
+### Architecture
 
-// Avoid
-logger.info(`User ${user.id} created`);
+```
+┌───────────────────┐  traceparent  ┌───────────────────┐
+│  React /          │ ────────────► │  NestJS           │
+│  React Native     │  in HTTP      │  (this package)   │
+│                   │  headers      │                   │
+│ Browser OTel SDK  │               │ Auto-extracts +   │
+│ creates root span │               │ continues trace   │
+│ + child fetch     │               │                   │
+│ span, injects     │               │                   │
+│ traceparent       │               │                   │
+└───────────────────┘               └───────────────────┘
+       │                                     │
+       └──────────► same backend ◄───────────┘
+              (Honeycomb / X-Ray / etc.)
+              stitches by trace_id
 ```
 
-### 3. Handle Errors Properly
-```typescript
-@traceDecorator
-async riskyOperation() {
-  try {
-    return await externalApi.call();
-  } catch (error) {
-    logger.error("External API failed", "Service.riskyOperation", {
-      error: error.message,
-      code: error.code
-    });
-    throw error;  // Re-throw to maintain trace error status
-  }
-}
-```
+Trace correlation requires nothing but the `traceparent` header on the wire — no shared code between frontend and backend.
 
-### 4. Create Trace Hierarchies
-```typescript
-@traceDecorator
-async parentOperation() {
-  await this.childOperation1();  // Apply decorator to create child span
-  await this.childOperation2();  // Apply decorator to create child span
-}
-```
-
-## Examples
-
-### Express Application
-
-```typescript
-import { adotInit, traceDecorator, logger } from "nodejs-observability";
-
-// Initialize at the very top
-adotInit("express-api", "/health", {
-  enable: process.env.NODE_ENV === 'development',
-  endpoint: "http://localhost:4317"
-});
-
-import express from 'express';
-const app = express();
-
-class UserController {
-  @traceDecorator
-  async getUsers(req, res) {
-    logger.info("Fetching users", "UserController.getUsers");
-    const users = await userService.getAllUsers();
-    res.json(users);
-  }
-}
-
-app.get('/users', (req, res) => controller.getUsers(req, res));
-```
-
-### Error Tracking
-
-```typescript
-@traceDecorator
-async processPayment(paymentData) {
-  logger.info("Payment initiated", "PaymentService.process", {
-    amount: paymentData.amount,
-    currency: paymentData.currency
-  });
-  
-  try {
-    const result = await paymentGateway.charge(paymentData);
-    logger.info("Payment successful", "PaymentService.process", {
-      transactionId: result.id
-    });
-    return result;
-  } catch (error) {
-    // Error automatically linked to trace
-    logger.error("Payment failed", "PaymentService.process", {
-      error: error.message,
-      paymentData
-    });
-    throw error;
-  }
-}
-```
-
-## Open Source & Contributing
-
-This package is **completely free and open source**! Feel free to:
-- 🍴 **Fork it** for your own use and modifications
-- 🔧 **Customize it** to fit your specific needs  
-- 🚀 **Use it** in your commercial or personal projects
-- 💡 **Contribute back** if you've built something useful
-
-### Want to Contribute?
-
-We'd love your help making this package better! Here's how:
+### React (web) setup
 
 ```bash
-# 1. Fork the repo to your account
-# 2. Clone your fork
-git clone https://github.com/manas-aggrawal/nodejs-observability.git
-cd nodejs-observability
-npm install
-
-# 3. Create a feature branch
-git checkout -b your-awesome-feature
-
-# 4. Make your changes and test
-npm test
-npm run lint
-
-# 5. Push to your fork
-git push origin your-awesome-feature
-
-# 6. Open a Pull Request to our main repo
+npm install @opentelemetry/api @opentelemetry/sdk-trace-web \
+  @opentelemetry/exporter-trace-otlp-http \
+  @opentelemetry/instrumentation-fetch \
+  @opentelemetry/instrumentation-document-load \
+  @opentelemetry/context-zone \
+  @opentelemetry/resources @opentelemetry/semantic-conventions
 ```
 
-**All contributions are welcome:**
-- 🐛 Bug fixes
-- ✨ New features
-- 📚 Documentation improvements
-- 🎨 Code refactoring
-- 💭 Ideas and suggestions
+```ts
+// src/telemetry.ts — imported once at the entry point, before any fetch
+import { WebTracerProvider, BatchSpanProcessor } from "@opentelemetry/sdk-trace-web";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { ZoneContextManager } from "@opentelemetry/context-zone";
+import { registerInstrumentations } from "@opentelemetry/instrumentation";
+import { FetchInstrumentation } from "@opentelemetry/instrumentation-fetch";
+import { DocumentLoadInstrumentation } from "@opentelemetry/instrumentation-document-load";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+const provider = new WebTracerProvider({
+  resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "checkout-web" }),
+  spanProcessors: [
+    new BatchSpanProcessor(
+      new OTLPTraceExporter({
+        url: import.meta.env.VITE_OTLP_ENDPOINT,
+        headers: { "x-honeycomb-team": import.meta.env.VITE_HONEYCOMB_INGEST_KEY },
+      })
+    ),
+  ],
+});
+provider.register({ contextManager: new ZoneContextManager() });
 
-### Using in Your Project?
+registerInstrumentations({
+  instrumentations: [
+    new DocumentLoadInstrumentation(),
+    new FetchInstrumentation({
+      // Browsers only inject traceparent on same-origin requests by default.
+      // List your API origins here so cross-origin fetches carry the header.
+      propagateTraceHeaderCorsUrls: [/https:\/\/api\.example\.com\/.*/],
+    }),
+  ],
+});
+```
 
-No need to ask permission! This is MIT licensed - just fork it and make it your own. If you build something cool with it, we'd love to hear about it!
+### React Native setup
+
+The same OTel JS SDKs work in RN — the fetch instrumentation hooks RN's polyfilled fetch. No first-class official OTel-RN SDK exists yet, so wiring is similar to web with a few differences:
+
+- No `DocumentLoadInstrumentation` (no DOM).
+- Use `@opentelemetry/context-async-hooks` instead of `ZoneContextManager`.
+- The default in-memory batch buffer is lost when the app is backgrounded — consider a smaller `maxExportBatchSize` and shorter `scheduledDelayMillis` so spans flush promptly on visible state changes.
+
+### CORS — the most common gotcha
+
+For cross-origin frontend → backend calls, the browser only sends `traceparent` if the backend's CORS preflight allows it:
+
+```ts
+// main.ts
+app.enableCors({
+  origin: [...],
+  allowedHeaders: [
+    "content-type",
+    "authorization",
+    "traceparent",
+    "tracestate",
+    "baggage",   // only if you use baggage propagation
+  ],
+});
+```
+
+Without this, the browser strips the header and your trace fragments at the network boundary — every backend call shows up as a fresh root span.
+
+### Where browser/RN traffic should land
+
+| Option | How | When |
+|---|---|---|
+| **Direct to vendor** | OTLP/HTTP straight to Honeycomb (or another OTLP-native ingest) using a scoped ingest-only API key. | Simplest. Honeycomb supports this; AWS X-Ray does not. |
+| **Public collector** | Run an internet-facing OTel Collector behind TLS, receiving OTLP/HTTP on `:4318`. Frontend posts to it. | When you want vendor changes to be a YAML edit, not a frontend redeploy. More surface to operate. |
+| **Backend proxy** | Frontend POSTs to a NestJS route; backend forwards through its existing collector. | When the collector must stay private (compliance), or to reuse your auth layer. Adds latency. |
+
+For AWS-side observability you'll typically need the public-collector or backend-proxy path — there's no public OTLP-to-X-Ray bridge equivalent to Honeycomb's ingest URL.
+
+### Sampling for browsers — read before going to production
+
+Browsers and mobile apps create spans cheaply and abundantly: every page load, every fetch, every navigation. Without sampling you can easily 10×–100× your trace volume and your vendor bill. Apply head-based sampling at the frontend SDK:
+
+```ts
+import { ParentBasedSampler, TraceIdRatioBasedSampler } from "@opentelemetry/sdk-trace-base";
+
+new WebTracerProvider({
+  sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(0.1) }), // 10%
+  // ...
+});
+```
+
+`ParentBasedSampler` ensures that if the backend decides to sample a request in (or out), the frontend's child spans follow the same decision — and vice versa.
+
+### Privacy
+
+Browser auto-instrumentations capture full URLs (including query strings) and user agents. If any URL parameter carries PII, configure a span processor to redact attributes before export, or scrub at the collector.
+
+## Migrating from v1.x
+
+`adotInit` and the legacy Winston `logger` are deprecated. See [DEPRECATIONS.md](DEPRECATIONS.md) for full side-by-side migrations and the removal timeline (v2.0.0, target 2026-08-01).
+
+Quick version:
+
+```ts
+// Before (v1.x)
+import { adotInit, logger } from "nodejs-observability";
+
+adotInit("checkout", "/health", { enable: true, endpoint: "http://localhost:4317" });
+logger.info("…", "Source", { });
+
+// After
+import { initTelemetry, presets, otelLogger } from "nodejs-observability";
+
+initTelemetry(presets.aws({
+  serviceName: "checkout",
+  healthCheckPath: "/health",
+  collectorEndpoint: "http://localhost:4317",
+}));
+otelLogger.info("…", "Source", { });
+```
+
+## Before You Ship to Production
+
+Quick checklist before deploying with this package:
+
+- [ ] **Lower `sampleRate`** — the default is 10%. For high-traffic services, 1–5% is typical; for low-traffic services, 100% is often fine. Set it explicitly so cost doesn't surprise you in the first billing cycle.
+- [ ] **Move the collector endpoint to env** — don't hardcode `localhost:4317`. Use `process.env.OTEL_COLLECTOR_ENDPOINT` (or your convention) so dev / staging / prod differ without a code change. **This value has to match what your collector binds** — it's the `receivers.otlp.protocols.grpc.endpoint` line in `examples/collector-config.yaml` (default in the example: `0.0.0.0:4317`). If the app side and the collector side disagree on host/port, the SDK silently fails to export.
+- [ ] **Store vendor secrets outside code** — `HONEYCOMB_API_KEY`, AWS credentials, etc. go through your secret manager (AWS Secrets Manager, k8s Secret, Vault). Never commit them.
+- [ ] **Verify CORS `allowedHeaders`** — if a browser frontend calls this service, NestJS `enableCors({ allowedHeaders: [..., "traceparent", "tracestate"] })`. Without this, trace continuity breaks at the network boundary and frontend / backend spans never join.
+- [ ] **Tail sampling at the collector** — if you operate the collector yourself, enable the `tail_sampling` processor (see `examples/collector-config.yaml`). Keeps every error trace plus a percentage of normal traffic — usually cheaper *and* more useful than aggressive head sampling.
+- [ ] **SIGTERM grace period** — the SDK auto-registers a SIGTERM handler that flushes the in-memory batch buffers (spans queued in `BatchSpanProcessor`, log records in `BatchLogRecordProcessor`, etc.) before the process exits. If your orchestrator kills the process too aggressively, the last few seconds of telemetry are lost. **The setting lives in your deployment config, not your app code.** Where to set it depending on your stack:
+
+  | Stack | Field | Where |
+  |---|---|---|
+  | Kubernetes | `terminationGracePeriodSeconds: 30` | Pod / Deployment spec |
+  | Docker Compose | `stop_grace_period: 30s` | per service |
+  | `docker run` | `--stop-timeout 30` | CLI flag |
+  | ECS task definition | `stopTimeout: 30` | container definition |
+  | systemd | `TimeoutStopSec=30s` | unit file |
+  | PM2 | `kill_timeout: 30000` | `ecosystem.config.js` |
+
+  30 seconds is a safe floor. Increase it if your buffers are large or the network to the collector is high-latency.
 
 ## Troubleshooting
 
-### Traces not appearing in AWS X-Ray
-- Ensure AWS credentials are configured
-- Check IAM permissions for X-Ray
-- Verify service name doesn't contain invalid characters
+### Spans don't appear in the backend
+- Confirm `initTelemetry` runs **before** any other import. Anything patched by an instrumentation (`http`, `express`, NestJS bootstrap) must load *after* the SDK registers its hooks.
+- Check `traces.sampleRate` — at the 10% default, only 1 in 10 traces is sampled.
+- Confirm the collector is reachable at the configured endpoint and has the right exporter wired.
 
-### Local traces not showing in Jaeger
-- Confirm Jaeger is running: `docker ps`
-- Check endpoint configuration matches Jaeger port
-- Verify `localhostConfig.enable` is `true`
+### NestJS routes break after adding `@traceDecorator`
+- Make sure you're on the current package version. Older versions had a decorator that dropped `descriptor.value`, breaking `@Get`/`@Post` metadata. Current decorator copies reflect-metadata onto the wrapper so it composes safely regardless of decorator order.
 
-### Decorator not creating spans
-- Ensure `@traceDecorator` is applied to methods (not arrow functions)
-- Verify `adotInit()` is called before decorator usage
-- Check that decorated methods are actually being called
+### CORS strips `traceparent` between frontend and backend
+- Add `traceparent`, `tracestate`, `baggage` to NestJS `enableCors({ allowedHeaders: [...] })`.
+
+### Tail sampling drops too much
+- Tail sampling only sees what reaches the collector. If SDK head sampling is 10% and tail probabilistic is 10%, vendor sees ~1% of normal traffic. Either raise SDK head to `1.0`, raise the tail probabilistic percentage, or both.
+
+### Logs don't show up in the observability backend
+- Confirm `logs` is configured in `initTelemetry`. Without it, the LoggerProvider falls back to a no-op and `otelLogger` calls are silently discarded.
+- Confirm the collector's `logs` pipeline has an exporter for your backend.
 
 ## Requirements
 
-- Node.js >= 14.x
-- TypeScript >= 4.x (for decorator support)
-- AWS credentials configured (for X-Ray)
-
-## License
-
-MIT
-
-## Support
-
-For issues and questions:
-- Open an [issue](https://github.com/manas-aggrawal/nodejs-observability/issues)
-- Check [existing issues](https://github.com/manas-aggrawal/nodejs-observability/issues?q=is%3Aissue)
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for more details
+- Node.js >= 18.x
+- TypeScript >= 5.x (decorators require `experimentalDecorators: true`)
 
 ## Roadmap
 
-- [ ] Support for additional databases (MongoDB)
-- [ ] Custom span attributes
-- [ ] Sampling strategies configuration
-- [ ] Metrics collection
-- [ ] Support for other telemetry backends
-- [ ] NestJS integration
+- [x] Pluggable exporter / propagator / id-generator
+- [x] Metrics SDK
+- [x] OTel Logs SDK
+- [x] Cost-mindful sampling defaults
+- [x] Tail-based sampling at the collector
+- [x] End-to-end trace correlation across frontend / backend
+- [ ] MongoDB instrumentation in the default set
+- [ ] `TelemetryModule.forRoot(...)` for NestJS — Nest-shaped wrapper around `initTelemetry`, plus injectable `OtelLoggerService` / `metrics` providers
+- [ ] Winston transport bridge so v1 `logger` users get OTLP for free during the deprecation window
+
+## License
+
+MIT — fork, customize, ship. See [LICENSE](LICENSE).
+
+## Support
+
+- Open an [issue](https://github.com/manas-aggrawal/nodejs-observability/issues)
+- See [DEPRECATIONS.md](DEPRECATIONS.md) for migration guidance
 
 ---
 
